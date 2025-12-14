@@ -1,0 +1,19 @@
+name: "cats_dbt"
+version: "1.0.0"
+config-version: 2
+
+profile: "cats_dbt"
+
+model-paths: ["models"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  cats_dbt:
+    staging:
+      +schema: staging
+      +materialized: view
+    mart:
+      +schema: mart
+      +materialized: table
+

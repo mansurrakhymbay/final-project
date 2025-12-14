@@ -1,0 +1,12 @@
+cats_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: dw_postgres
+      user: dw
+      password: dw
+      port: 5432
+      dbname: dw
+      schema: dbt
+      threads: 4

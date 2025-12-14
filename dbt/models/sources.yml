@@ -1,0 +1,28 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    tables:
+      - name: breeds
+      - name: images
+
+models:
+  - name: stg_breeds
+    columns:
+      - name: breed_id
+        tests:
+          - not_null
+          - unique
+
+  - name: stg_images
+    columns:
+      - name: image_id
+        tests:
+          - not_null
+          - unique
+      - name: breed_id
+        tests:
+          - relationships:
+              to: ref('stg_breeds')
+              field: breed_id

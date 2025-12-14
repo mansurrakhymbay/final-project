@@ -1,0 +1,89 @@
+version: "3.8"
+
+services:
+  dw_postgres:
+    image: postgres:16
+    container_name: dw_postgres
+    environment:
+      POSTGRES_USER: dw
+      POSTGRES_PASSWORD: dw
+      POSTGRES_DB: dw
+    ports:
+      - "5433:5432"
+    volumes:
+      - dw_pgdata:/var/lib/postgresql/data
+      - ./sql/init_dw.sql:/docker-entrypoint-initdb.d/init_dw.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dw -d dw"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  airflow_postgres:
+    image: postgres:16
+    container_name: airflow_postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  airflow:
+    image: apache/airflow:2.9.3-python3.11
+    container_name: airflow
+    depends_on:
+      dw_postgres:
+        condition: service_healthy
+      airflow_postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Airflow core
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+
+      # Airflow DB (metadata)
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow_postgres:5432/airflow
+
+      # Timezone
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: Asia/Almaty
+
+      # Connection to DW for PostgresHook (as env var connection)
+      AIRFLOW_CONN_POSTGRES_DW: postgresql://dw:dw@dw_postgres:5432/dw
+
+      # dbt
+      DBT_PROFILES_DIR: /opt/airflow/dbt
+
+    ports:
+      - "8080:8080"
+
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./dbt:/opt/airflow/dbt
+      - ./requirements.txt:/opt/airflow/requirements.txt
+
+    command: >
+      bash -lc "
+      pip install --no-cache-dir -r /opt/airflow/requirements.txt &&
+      airflow db migrate &&
+      airflow users create
+        --username ${AIRFLOW_ADMIN_USER}
+        --password ${AIRFLOW_ADMIN_PASSWORD}
+        --firstname Admin
+        --lastname User
+        --role Admin
+        --email ${AIRFLOW_ADMIN_EMAIL} || true &&
+      airflow scheduler & airflow webserver
+      "
+
+volumes:
+  dw_pgdata:
+  airflow_pgdata:
