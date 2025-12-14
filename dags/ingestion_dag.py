@@ -22,7 +22,6 @@ def utcnow() -> datetime:
 def parse_ts(value: Optional[str]) -> Optional[datetime]:
     if not value:
         return None
-    # TheCatAPI иногда отдает ISO
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except Exception:
@@ -136,13 +135,12 @@ with DAG(
                 width = img.get("width")
                 height = img.get("height")
 
-                # breed_id: в images есть breeds: [{id, name, ...}]
                 breeds = img.get("breeds") or []
                 breed_id = None
                 if breeds and isinstance(breeds, list):
                     breed_id = breeds[0].get("id")
 
-                created_at = parse_ts(img.get("created_at"))  # может быть None
+                created_at = parse_ts(img.get("created_at"))  
 
                 insert_rows.append(
                     (
